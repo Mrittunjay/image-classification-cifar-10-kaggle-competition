@@ -78,22 +78,3 @@ if __name__ == '__main__':
 
 
 
-#
-# # displaying a random image from the dataset to check
-# import torchvision.transforms.functional as tf
-# import matplotlib.pyplot as plt
-# image, label = train_dataset[0]
-# image = tf.to_pil_image(image)
-# plt.imshow(image)
-# plt.title("Test dataset image")
-# plt.axis('off')
-# plt.show()
-#
-# # Loading ground truth labels from train.csv
-# train_labels = pd.read_csv("cifar-10/trainLabels.csv")
-# print(train_labels.head(5))
-#
-# # Splitting the data into training and validation set at random
-
-
-
