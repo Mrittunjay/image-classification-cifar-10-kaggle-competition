@@ -10,6 +10,22 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 
+def get_classes(labels_csv):
+    """
+    Get the class names and create a class to index dictionary map
+    :param labels_csv:
+    :return: classes, class_to_idx
+    """
+    ground_truth_df = pd.read_csv(labels_csv)
+    classes = list(ground_truth_df['label'].unique())
+
+    # Creating a dictionary for class labels
+    # values = ['frog', 'truck', 'deer', 'automobile', 'bird', 'horse', 'ship', 'cat', 'dog', 'airplane']
+    keys = [i for i in range(len(classes))]
+    class_to_idx = {k: v for k, v in zip(classes, keys)}
+    return classes, class_to_idx
+
+
 # Creating a custom dataset class for my CIFAR 10 dataset
 class CustomCIFAR10Dataset(Dataset):
     def __init__(self, root_dir, csv_file, transform=None):
@@ -20,14 +36,27 @@ class CustomCIFAR10Dataset(Dataset):
         self.labels_df = pd.read_csv(csv_file)
         # # Extracting image IDs and Labels
         self.image_ids = self.labels_df['id'].tolist()
-        self.image_labels = self.labels_df['label'].tolist()
+        self.class_names = self.labels_df['label'].tolist()
+        self.classes, self.class_to_idx = get_classes(csv_file)
+
+    def create_class_dict(self):
+        # To check the unique classes
+        ground_truth_df = pd.read_csv(self.labels_df)
+        values = list(ground_truth_df['label'].unique())
+
+        # Creating a dictionary for class labels
+        # values = ['frog', 'truck', 'deer', 'automobile', 'bird', 'horse', 'ship', 'cat', 'dog', 'airplane']
+        keys = [i for i in range(len(values))]
+        class_dict = {k: v for k, v in zip(keys, values)}
+        print(class_dict)
 
     def __len__(self):
         return len(self.labels_df)
 
     def __getitem__(self, idx):
         img_id = self.image_ids[idx]
-        img_label = self.image_labels[idx]
+        class_name = self.class_names[idx]
+        class_idx = self.class_to_idx[class_name]
 
         # Constructing image file path
         img_name = f"{img_id}.png"
@@ -37,9 +66,9 @@ class CustomCIFAR10Dataset(Dataset):
         img = Image.open(img_path).convert('RGB')
 
         if self.transform:
-            img = self.transform(img)
+            image = self.transform(img)
 
-        return img, img_label
+        return img, class_idx
 
 
 # Creating a simple convolutional neural net
@@ -81,10 +110,6 @@ if __name__ == '__main__':
     root_dir = "cifar-10/train"
     labels_file = "cifar-10/trainLabels.csv"
 
-    # To check the unique classes
-    # ground_truth_df = pd.read_csv(labels_file)
-    # print(f"Number of classes in the dataset: {ground_truth_df['label'].unique()}")
-
     # Custom dataset instance
     custom_dataset = CustomCIFAR10Dataset(root_dir=root_dir,
                                           csv_file=labels_file,
@@ -112,8 +137,12 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=8)
     validation_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=8)
 
+    img, label = next(iter(train_dataloader))
+    print(f"img: {img.shape}") # | Label: {label.shape}")
+    print(f"Label: {label.shape}")
+
     # model class
-    model1 = SimpleNet()
+    model1 = SimpleNet().to(device)
 
     # Initializing loss_function and optimizer
     criterion = nn.CrossEntropyLoss()
@@ -123,19 +152,16 @@ if __name__ == '__main__':
     for epoch in range(10):
         model1.train()
         running_loss = 0.0
-        for i, batch in enumerate(train_dataloader, 0):
-            print(f"OUR DATA: {batch}")
-            inputs, labels = batch
+        for batch, (image, label) in enumerate(train_dataloader):
             # print(f"shape of inputs: {inputs[0].shape}")
-            # inputs, labels = inputs.to(device), labels.to(device)
+            image, label = image.to(device), label.to(device)
             # print(f"inputs: {inputs}")
-
             optimizer.zero_grad()
 
             # Forward pass, backward propagation and optimize
-            outputs = model1(inputs)
-            print("model output:")
-            print(outputs)
+            outputs = model1(image)
+            # print("model output:")
+            # print(outputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -143,7 +169,7 @@ if __name__ == '__main__':
             # Model statistics
             running_loss += loss.item()
             if i % 2000 == 1999:    # Printing every 2000 mini-batches
-                print(f"[{epoch + 1}, {i + 1}] loss: {running_loss / 2000:.3f}")
+                print(f"[{epoch + 1}, {batch + 1}] loss: {running_loss / 2000:.3f}")
                 running_los = 0
 
         model1.eval()
