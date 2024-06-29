@@ -66,7 +66,7 @@ class CustomCIFAR10Dataset(Dataset):
         img = Image.open(img_path).convert('RGB')
 
         if self.transform:
-            image = self.transform(img)
+            img = self.transform(img)
 
         return img, class_idx
 
@@ -92,13 +92,46 @@ class SimpleNet(nn.Module):
         return x
 
 
+# class SimpleNet(nn.Module):
+#     def __init__(self):
+#         super(SimpleNet, self).__init__()
+#         self.Conv1 = nn.Conv2d(3, 6, 5)
+#         self.pool = nn.MaxPool2d(2, 2)
+#         self.Conv2 = nn.Conv2d(6, 16, 5)
+#
+#         # Calculate the size of the flattened feature map
+#         self.flattened_size = self._get_flattened_size()
+#
+#         self.fc1 = nn.Linear(self.flattened_size, 120)
+#         self.fc2 = nn.Linear(120, 84)
+#         self.fc3 = nn.Linear(84, 10)
+#
+#     def _get_flattened_size(self):
+#         # Pass a dummy tensor to calculate the size after the conv and pooling layers
+#         with torch.no_grad():
+#             dummy_input = torch.zeros(1, 3, 64, 64)
+#             x = self.pool(F.relu(self.Conv1(dummy_input)))
+#             x = self.pool(F.relu(self.Conv2(x)))
+#             return x.numel()
+#
+#     def forward(self, x):
+#         x = self.pool(F.relu(self.Conv1(x)))
+#         x = self.pool(F.relu(self.Conv2(x)))
+#         x = x.view(-1, self.flattened_size)
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+
+
 if __name__ == '__main__':
     print(f"Torch version: {torch.__version__}")
     print(f"Cuda is available: {torch.cuda.is_available()}")
     # print(torch.cuda.current_device())
     print(f"Cuda running on device: {torch.cuda.get_device_name(0)}")
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'
 
     # required transformations
     transform = transforms.Compose([
@@ -138,6 +171,7 @@ if __name__ == '__main__':
     validation_dataloader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=8)
 
     img, label = next(iter(train_dataloader))
+    print(img)
     print(f"img: {img.shape}") # | Label: {label.shape}")
     print(f"Label: {label.shape}")
 
@@ -146,20 +180,24 @@ if __name__ == '__main__':
 
     # Initializing loss_function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model1.parameters(), lr=0.001, momentum=0.9)
+    optimizer = torch.optim.SGD(model1.parameters(), lr=0.01, momentum=0.9)
 
     # Training loop
     for epoch in range(10):
         model1.train()
         running_loss = 0.0
-        for batch, (image, label) in enumerate(train_dataloader):
-            # print(f"shape of inputs: {inputs[0].shape}")
-            image, label = image.to(device), label.to(device)
-            # print(f"inputs: {inputs}")
+        for batch, (images, labels) in enumerate(train_dataloader):
+            # print(images)
+            print(f"Batch: {batch}")
+            # print(f"Shape of image: {images.shape}, Type of image: {type(images)}")
+            # print(f"Shape of label: {labels.shape}, Type of label: {type(labels)}")
+            images, labels = images.to(device), labels.to(device)
+
+            # print(image)
             optimizer.zero_grad()
 
             # Forward pass, backward propagation and optimize
-            outputs = model1(image)
+            outputs = model1(images)
             # print("model output:")
             # print(outputs)
             loss = criterion(outputs, labels)
@@ -168,7 +206,7 @@ if __name__ == '__main__':
 
             # Model statistics
             running_loss += loss.item()
-            if i % 2000 == 1999:    # Printing every 2000 mini-batches
+            if batch % 2000 == 1999:    # Printing every 2000 mini-batches
                 print(f"[{epoch + 1}, {batch + 1}] loss: {running_loss / 2000:.3f}")
                 running_los = 0
 
@@ -179,6 +217,7 @@ if __name__ == '__main__':
         with torch.no_grad():
             for batch in validation_dataloader:
                 images, labels = batch
+                images.to(device), labels.to(device)
                 outputs = model1(images)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
