@@ -1,3 +1,5 @@
+import random
+
 import torch
 import torchvision.datasets
 from torch import nn
@@ -8,6 +10,10 @@ import pandas as pd
 import os
 from PIL import Image
 import matplotlib.pyplot as plt
+
+# Paths to dataset and labels file
+root_dir = "cifar-10/train"
+labels_file = "cifar-10/trainLabels.csv"
 
 
 def get_classes(labels_csv):
@@ -71,6 +77,165 @@ class CustomCIFAR10Dataset(Dataset):
         return img, class_idx
 
 
+class TinyVGG(nn.Module):
+    """
+    Model architecture: TinyVGG architecture copied from CNN Explainer website
+    """
+    def __init__(self, input_shape: int,
+                 hidden_units: int,
+                 output_shape: int) -> None:
+        super().__init__()
+        self.conv_block_1 = nn.Sequential(
+            nn.Conv2d(in_channels=input_shape,
+                      out_channels=hidden_units,
+                      kernel_size= 3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2,
+                         stride=2)      # For maxpool2d layer the default stride is same as kernel size
+        )
+        self.conv_block_2 = nn.Sequential(
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2,
+                         stride=2)
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=hidden_units * 8 * 8,
+                      out_features=output_shape)
+        )
+
+    def forward(self, x):
+        x = self.conv_block_1(x)
+        print(x.shape)
+        x = self.conv_block_2(x)
+        print(x.shape)
+        x = self.classifier(x)
+        print(x.shape)
+        return x
+
+
+# Function to display random images
+def display_random_image(dataset: torch.utils.data.Dataset,
+                         classes: list[str] = None,
+                         n: int = 10,
+                         seed: int = None):
+    """
+    1. Take in a Dataset and number of images to visualize, class names etc.
+    2. To prevent visualization to go out of hand keeping number of images 10
+    3. Set random seed for reproducibility
+    4. Get the list of random sample indexes from the dataset
+    5. Set up a matplotlib plot
+    6. Loop through the random samples and plot them using matplotlib
+    7. Make sure dimensions of our image matches the dimension of matplotlib(HWC)
+    :return: NIl
+    """
+
+    # 2. To prevent visualization to go out of hand keeping number of images 10
+    if n > 10:
+        n = 10
+        display_shape = False
+        print(f"For display purposes number of images to display is fixed to {n}")
+
+    # 3. Set random seed for reproducibility
+    if seed:
+        random.seed(seed)
+
+    # 4. Get the list of random sample indexes from the dataset
+    random_sample_idx = random.sample(range(len(dataset)), k=n)
+
+    # 5. Set up a matplotlib plot
+    plt.figure(figsize=(20, 10))
+
+    # 6. Loop through the random samples and plot them using matplotlib
+    for i, target in enumerate(random_sample_idx):
+        image, label = dataset[target][0], dataset[target][1]
+
+        # 7. Make sure dimensions of our image matches the dimension of matplotlib(HWC)
+        image_adjusted = image.permute(1, 2, 0)  # [colour_channel, height, width](CHW) --> (HWC)
+
+        # Plotting adjusted sample images
+        # plt.subplot(1, n, i+1)
+        plt.imshow(image_adjusted)
+        plt.axis('off')
+        if classes:
+            title = f"Class: {classes[label]} \nShape: {image_adjusted.shape}"
+            plt.title(title)
+        plt.show()
+
+
+if __name__ == '__main__':
+    # Device agnostic code
+    device = ''
+    if torch.cuda.is_available():
+        print("Cuda is available")
+        device = 'cuda'
+    else:
+        print("Cuda is not available")
+        device = 'cpu'
+    print(f"cuda device: {torch.cuda.get_device_name(0)}")
+
+    # Creating a transform for the images
+    transform = transforms.Compose([
+        # transforms.Resize(size=(224, 224)),
+        transforms.ToTensor()
+    ])
+
+    # Creating a custom dataset instance
+    custom_dataset = CustomCIFAR10Dataset(root_dir=root_dir,
+                                          csv_file=labels_file,
+                                          transform=transform)
+
+    # Visualizing some images from the dataset
+    display_random_image(dataset=custom_dataset,
+                         classes=get_classes(labels_file)[0],
+                         n=6)
+
+    # Splitting data into train and test dataset
+    train_size = int(0.8 * len(custom_dataset))
+    val_size = len(custom_dataset) - train_size
+    train_data, val_data = random_split(custom_dataset, [train_size, val_size])
+
+    # Creating data loaders
+    BATCH_SIZE = 32
+    NUM_WORKERS = os.cpu_count()
+    train_dataloader = DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+    validation_dataloader = DataLoader(dataset=val_data, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+
+    # Checking dataloader shape
+    img, lab = next(iter(train_dataloader))
+    print(f"Shape of train dataloader images: {img.shape} \n Shape of labels: {lab.shape}")
+
+    model_vgg = TinyVGG(input_shape=3,
+                        hidden_units=10,
+                        output_shape=len(get_classes(labels_file)[0])).to(device)
+
+    # Trying a forward pass on a single image to test the model
+    image_batch, labels_batch = next(iter(train_dataloader))
+    print(image_batch.shape, labels_batch.shape)
+
+    model_vgg(image_batch.to(device))
+
+######################################################################################################################
+"""
 # Creating a simple convolutional neural net
 class SimpleNet(nn.Module):
     def __init__(self):
@@ -233,6 +398,7 @@ if __name__ == '__main__':
     print("TRAINING FINISHED")
     print("TRAINING FINISHED")
     print("TRAINING FINISHED")
-
+"""
+#######################################################################################################################
 
 
