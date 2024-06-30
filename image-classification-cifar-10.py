@@ -92,31 +92,56 @@ class TinyVGG(nn.Module):
                       kernel_size= 3,
                       stride=1,
                       padding=1),
+            nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_units,
                       out_channels=hidden_units,
                       kernel_size=3,
                       stride=1,
                       padding=1),
+            nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
-                         stride=2)      # For maxpool2d layer the default stride is same as kernel size
+                         stride=2),     # For maxpool2d layer the default stride is same as kernel size
+            nn.Dropout(p=0.15)          # Drop out layer to prevent overfitting
         )
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
                       out_channels=hidden_units,
-                      kernel_size=3,
+                      kernel_size= 3,
                       stride=1,
                       padding=1),
+            nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_units,
                       out_channels=hidden_units,
                       kernel_size=3,
                       stride=1,
                       padding=1),
+            nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
-                         stride=2)
+                         stride=2),      # For maxpool2d layer the default stride is same as kernel size
+            nn.Dropout(p=0.15)  # Drop out layer to prevent overfitting
+        )
+        self.conv_block_3 = nn.Sequential(
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.BatchNorm2d(hidden_units),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.BatchNorm2d(hidden_units),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2,
+                         stride=2),      # For maxpool2d layer the default stride is same as kernel size
+            nn.Dropout(p=0.15)  # Drop out layer to prevent overfitting
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
@@ -129,6 +154,8 @@ class TinyVGG(nn.Module):
         # print(x.shape)
         x = self.conv_block_2(x)
         # print(x.shape)
+        x = self.conv_block_3(x)
+        # print(x.shape)
         x = self.classifier(x)
         # print(x.shape)
         return x
@@ -138,7 +165,7 @@ class TinyVGG(nn.Module):
 # Function to display random images
 def display_random_image(dataset: torch.utils.data.Dataset,
                          classes: list[str] = None,
-                         n: int = 10,
+                         n: int = 5,
                          seed: int = None):
     """
     1. Take in a Dataset and number of images to visualize, class names etc.
@@ -336,7 +363,7 @@ if __name__ == '__main__':
 
     # Creating a transform for the images
     transform = transforms.Compose([
-        # transforms.Resize(size=(224, 224)),
+        transforms.Resize(size=(64, 64)),
         transforms.ToTensor()
     ])
 
@@ -366,23 +393,29 @@ if __name__ == '__main__':
     # print(f"Shape of train dataloader images: {img.shape} \n Shape of labels: {lab.shape}")
 
     model_vgg_v0 = TinyVGG(input_shape=3,
-                        hidden_units=10,
+                        hidden_units=64,
                         output_shape=len(get_classes(labels_file)[0])).to(device)
 
+    # *************************** TEST THE MODEL SHAPE ************************************************************
     # # Trying a forward pass on a single image to test the model to figure out the flatten layer input shape
     # image_batch, labels_batch = next(iter(train_dataloader))
     # print(image_batch.shape, labels_batch.shape)
     #
-    # model_vgg(image_batch.to(device))
+    # model_vgg_v0(image_batch.to(device))
+    # ************************************************************************************************************
 
-    # # Use torchinfo to get an idea of the shapes going through middle
-    # from torchinfo import summary
-    # summary(model_vgg_v0, input_size=[1, 3, 32, 32])
+    # *************************** TRAIN THE MODEL ****************************************************************
+    # Use torchinfo to get an idea of the shapes going through middle
+    from torchinfo import summary
+    summary(model_vgg_v0, input_size=[1, 3, 64, 64])
 
     # Setting loss function and optimizer
     loss_fn = nn.CrossEntropyLoss()
+    # optimizer = torch.optim.Adam(params=model_vgg_v0.parameters(),
+    #                              lr=0.001)
     optimizer = torch.optim.Adam(params=model_vgg_v0.parameters(),
-                                 lr = 0.001)
+                                 lr=0.001,
+                                 weight_decay=1e-4)
 
     # Start timer to calculate model training time
     start_time = timer()
@@ -399,5 +432,5 @@ if __name__ == '__main__':
     # End time
     end_time = timer()
     print(f"Total training time: {(end_time - start_time)/60} min")
-    print(f"Training Results: {model_vgg_v0_results}")
+    # ***********************************************************************************************************
 # END OF MAIN
