@@ -89,63 +89,82 @@ class TinyVGG(nn.Module):
         self.conv_block_1 = nn.Sequential(
             nn.Conv2d(in_channels=input_shape,
                       out_channels=hidden_units,
-                      kernel_size= 3,
+                      kernel_size=3,
                       stride=1,
-                      padding=1),
+                      padding=2),
             nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_units,
                       out_channels=hidden_units,
                       kernel_size=3,
                       stride=1,
-                      padding=1),
+                      padding=2),
             nn.BatchNorm2d(hidden_units),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),     # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.10)          # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.1)          # Drop out layer to prevent overfitting
         )
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
-                      out_channels=hidden_units,
-                      kernel_size= 3,
-                      stride=1,
-                      padding=1),
-            nn.BatchNorm2d(hidden_units),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=hidden_units,
-                      out_channels=hidden_units,
+                      out_channels=hidden_units * 2,
                       kernel_size=3,
                       stride=1,
-                      padding=1),
-            nn.BatchNorm2d(hidden_units),
+                      padding=2),
+            nn.BatchNorm2d(hidden_units * 2),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units * 2,
+                      out_channels=hidden_units * 2,
+                      kernel_size=3,
+                      stride=1,
+                      padding=2),
+            nn.BatchNorm2d(hidden_units*2),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
-                         stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.10)  # Drop out layer to prevent overfitting
+                         stride=2),
+            nn.Dropout(p=0.2)
         )
         self.conv_block_3 = nn.Sequential(
-            nn.Conv2d(in_channels=hidden_units,
-                      out_channels=hidden_units,
+            nn.Conv2d(in_channels=hidden_units * 2,
+                      out_channels=hidden_units * 4,
                       kernel_size=3,
                       stride=1,
-                      padding=1),
-            nn.BatchNorm2d(hidden_units),
+                      padding=2),
+            nn.BatchNorm2d(hidden_units * 4),
             nn.ReLU(),
-            nn.Conv2d(in_channels=hidden_units,
-                      out_channels=hidden_units,
+            nn.Conv2d(in_channels=hidden_units * 4,
+                      out_channels=hidden_units * 4,
                       kernel_size=3,
                       stride=1,
-                      padding=1),
-            nn.BatchNorm2d(hidden_units),
+                      padding=2),
+            nn.BatchNorm2d(hidden_units * 4),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.10)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.3)  # Drop out layer to prevent overfitting
+        )
+        self.conv_block_4 = nn.Sequential(
+            nn.Conv2d(in_channels=hidden_units * 4,
+                      out_channels=hidden_units * 4,
+                      kernel_size=3,
+                      stride=1,
+                      padding=2),
+            nn.BatchNorm2d(hidden_units * 4),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units * 4,
+                      out_channels=hidden_units * 4,
+                      kernel_size=3,
+                      stride=1,
+                      padding=2),
+            nn.BatchNorm2d(hidden_units * 4),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2,
+                         stride=2),      # For maxpool2d layer the default stride is same as kernel size
+            nn.Dropout(p=0.4)  # Drop out layer to prevent overfitting
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=hidden_units * 4 * 4,
+            nn.Linear(in_features=hidden_units * 5 * 5 * 4,
                       out_features=output_shape)
         )
 
@@ -155,6 +174,8 @@ class TinyVGG(nn.Module):
         x = self.conv_block_2(x)
         # print(x.shape)
         x = self.conv_block_3(x)
+        # print(x.shape)
+        x = self.conv_block_4(x)
         # print(x.shape)
         x = self.classifier(x)
         # print(x.shape)
@@ -209,7 +230,7 @@ def display_random_image(dataset: torch.utils.data.Dataset,
             title = f"Class: {classes[label]} \nShape: {image_adjusted.shape}"
             plt.title(title)
         plt.show()
-# # END OF DISPLAY RANDOM IMAGE
+# END OF DISPLAY RANDOM IMAGE
 
 
 # Creating train step function
@@ -349,7 +370,7 @@ def train(model: torch.nn.Module,
 
 
 if __name__ == '__main__':
-    NUM_EPOCHS = 20
+    NUM_EPOCHS = 30
 
     # Device agnostic code
     device = ''
@@ -392,9 +413,7 @@ if __name__ == '__main__':
     # img, lab = next(iter(train_dataloader))
     # print(f"Shape of train dataloader images: {img.shape} \n Shape of labels: {lab.shape}")
 
-    model_vgg_v0 = TinyVGG(input_shape=3,
-                        hidden_units=64,
-                        output_shape=len(get_classes(labels_file)[0])).to(device)
+    model_vgg_v0 = TinyVGG(input_shape=3, hidden_units=32, output_shape=len(get_classes(labels_file)[0])).to(device)
 
     # *************************** TEST THE MODEL SHAPE ************************************************************
     # # Trying a forward pass on a single image to test the model to figure out the flatten layer input shape
