@@ -103,7 +103,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),     # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.15)          # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.10)          # Drop out layer to prevent overfitting
         )
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
@@ -122,7 +122,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.15)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.10)  # Drop out layer to prevent overfitting
         )
         self.conv_block_3 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
@@ -141,11 +141,11 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.15)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.10)  # Drop out layer to prevent overfitting
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=hidden_units * 8 * 8,
+            nn.Linear(in_features=hidden_units * 4 * 4,
                       out_features=output_shape)
         )
 
@@ -363,7 +363,7 @@ if __name__ == '__main__':
 
     # Creating a transform for the images
     transform = transforms.Compose([
-        transforms.Resize(size=(64, 64)),
+        # transforms.Resize(size=(64, 64)),
         transforms.ToTensor()
     ])
 
@@ -375,7 +375,7 @@ if __name__ == '__main__':
     # Visualizing some images from the dataset
     display_random_image(dataset=custom_dataset,
                          classes=get_classes(labels_file)[0],
-                         n=6)
+                         n=2)
 
     # Splitting data into train and test dataset
     train_size = int(0.8 * len(custom_dataset))
@@ -407,7 +407,7 @@ if __name__ == '__main__':
     # *************************** TRAIN THE MODEL ****************************************************************
     # Use torchinfo to get an idea of the shapes going through middle
     from torchinfo import summary
-    summary(model_vgg_v0, input_size=[1, 3, 64, 64])
+    summary(model_vgg_v0, input_size=[1, 3, 32, 32])
 
     # Setting loss function and optimizer
     loss_fn = nn.CrossEntropyLoss()
@@ -415,7 +415,7 @@ if __name__ == '__main__':
     #                              lr=0.001)
     optimizer = torch.optim.Adam(params=model_vgg_v0.parameters(),
                                  lr=0.001,
-                                 weight_decay=1e-4)
+                                 weight_decay=1e-3)
 
     # Start timer to calculate model training time
     start_time = timer()
