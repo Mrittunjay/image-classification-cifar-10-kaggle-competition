@@ -164,7 +164,7 @@ class TinyVGG(nn.Module):
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=hidden_units * 5 * 5 * 4,
+            nn.Linear(in_features=hidden_units * 7 * 7 * 4,
                       out_features=output_shape)
         )
 
@@ -384,7 +384,7 @@ if __name__ == '__main__':
 
     # Creating a transform for the images
     transform = transforms.Compose([
-        # transforms.Resize(size=(64, 64)),
+        transforms.Resize(size=(64, 64)),
         transforms.ToTensor()
     ])
 
@@ -426,7 +426,7 @@ if __name__ == '__main__':
     # *************************** TRAIN THE MODEL ****************************************************************
     # Use torchinfo to get an idea of the shapes going through middle
     from torchinfo import summary
-    summary(model_vgg_v0, input_size=[1, 3, 32, 32])
+    summary(model_vgg_v0, input_size=[1, 3, 64, 64])
 
     # Setting loss function and optimizer
     loss_fn = nn.CrossEntropyLoss()
