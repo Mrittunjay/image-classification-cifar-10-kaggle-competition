@@ -103,7 +103,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),     # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.1)          # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.2)          # Drop out layer to prevent overfitting
         )
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
@@ -122,7 +122,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),
-            nn.Dropout(p=0.2)
+            nn.Dropout(p=0.3)
         )
         self.conv_block_3 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units * 2,
@@ -141,7 +141,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.3)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.4)  # Drop out layer to prevent overfitting
         )
         self.conv_block_4 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units * 4,
@@ -160,7 +160,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.4)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.5)  # Drop out layer to prevent overfitting
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
@@ -330,6 +330,7 @@ def train(model: torch.nn.Module,
           train_dataloader: torch.utils.data.DataLoader,
           validation_dataloader: torch.utils.data.DataLoader,
           optimizer: torch.optim.Optimizer,
+          scheduler: torch.optim.lr_scheduler.ReduceLROnPlateau,
           loss_fn: torch.nn.Module = nn.CrossEntropyLoss,
           device: str = 'cpu',
           epochs: int = 5):
@@ -359,6 +360,8 @@ def train(model: torch.nn.Module,
         # 4. Print out what happening
         print(f"\nEpoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc*100:.2f}% | Val loss: {val_loss:.4f} | Val acc: {val_acc*100:.2f}%")
 
+        scheduler.step(val_loss)
+
         # 5 Update results dictionary
         results['train_loss'].append(train_loss)
         results['train_acc'].append(train_acc)
@@ -370,7 +373,7 @@ def train(model: torch.nn.Module,
 
 
 if __name__ == '__main__':
-    NUM_EPOCHS = 30
+    NUM_EPOCHS = 50
 
     # Device agnostic code
     device = ''
@@ -404,7 +407,7 @@ if __name__ == '__main__':
     train_data, val_data = random_split(custom_dataset, [train_size, val_size])
 
     # Creating data loaders
-    BATCH_SIZE = 32
+    BATCH_SIZE = 64
     NUM_WORKERS = os.cpu_count()
     train_dataloader = DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     validation_dataloader = DataLoader(dataset=val_data, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
@@ -433,9 +436,12 @@ if __name__ == '__main__':
     # optimizer = torch.optim.Adam(params=model_vgg_v0.parameters(),
     #                              lr=0.001)
     optimizer = torch.optim.Adam(params=model_vgg_v0.parameters(),
-                                 lr=0.001,
-                                 weight_decay=1e-3)
-
+                                 lr=0.003,
+                                 weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                           'min',   # The learning rate will be reduced when the monitored quantity has stopped decreasing
+                                                           0.1,     # The factor by which the learning rate will be reduced. New learning rate = old learning rate * factor (so 0.003 will become 0.0003 and so on)
+                                                           3)     # the number of epochs to wait for an improvement in the monitored metric before reducing the learning rate
     # Start timer to calculate model training time
     start_time = timer()
 
@@ -444,6 +450,7 @@ if __name__ == '__main__':
                                  train_dataloader=train_dataloader,
                                  validation_dataloader=validation_dataloader,
                                  optimizer=optimizer,
+                                 scheduler = scheduler,
                                  loss_fn=loss_fn,
                                  epochs=NUM_EPOCHS,
                                  device=device)
