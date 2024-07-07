@@ -11,6 +11,7 @@ import torch.cuda
 import torchvision.transforms as transforms
 from PIL import Image
 from torch import nn
+from tqdm.auto import tqdm
 
 
 class TinyVGG(nn.Module):
@@ -211,8 +212,16 @@ def save_predictions_to_csv(image_ids, predictions, output_file, idx_to_class):
         'label': labels
     })
 
+    # # The values needed to be sorted
+    # df = df.sort_values(by='id')    # This did not work
+
     # Save DataFrame to CSV
     df.to_csv(output_file, index=False)
+
+    copy_df = pd.read_csv(output_file)
+    sorted_df = copy_df.sort_values(by='id')
+    sorted_df.to_csv(output_file, index=False)
+
     print(f"Predictions saved to {output_file}")
 
 
@@ -247,7 +256,7 @@ def main():
     predictions = []
     image_ids = []
     with torch.no_grad():
-        for image_path in test_images:
+        for image_path in tqdm(test_images):
             image_name = os.path.basename(image_path)
             image_ids.append(image_name)
 
