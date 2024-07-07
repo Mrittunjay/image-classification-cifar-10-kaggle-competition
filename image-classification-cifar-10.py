@@ -103,7 +103,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),     # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.2)          # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.1)          # Drop out layer to prevent overfitting
         )
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units,
@@ -122,7 +122,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),
-            nn.Dropout(p=0.3)
+            nn.Dropout(p=0.2)
         )
         self.conv_block_3 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units * 2,
@@ -141,7 +141,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.4)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.3)  # Drop out layer to prevent overfitting
         )
         self.conv_block_4 = nn.Sequential(
             nn.Conv2d(in_channels=hidden_units * 4,
@@ -160,7 +160,7 @@ class TinyVGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2,
                          stride=2),      # For maxpool2d layer the default stride is same as kernel size
-            nn.Dropout(p=0.5)  # Drop out layer to prevent overfitting
+            nn.Dropout(p=0.4)  # Drop out layer to prevent overfitting
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
@@ -373,7 +373,7 @@ def train(model: torch.nn.Module,
 
 
 if __name__ == '__main__':
-    NUM_EPOCHS = 50
+    NUM_EPOCHS = 80
 
     # Device agnostic code
     device = ''
@@ -450,7 +450,7 @@ if __name__ == '__main__':
                                  train_dataloader=train_dataloader,
                                  validation_dataloader=validation_dataloader,
                                  optimizer=optimizer,
-                                 scheduler = scheduler,
+                                 scheduler=scheduler,
                                  loss_fn=loss_fn,
                                  epochs=NUM_EPOCHS,
                                  device=device)
@@ -459,4 +459,10 @@ if __name__ == '__main__':
     end_time = timer()
     print(f"Total training time: {(end_time - start_time)/60} min")
     # ***********************************************************************************************************
+
+    # Save the model after training
+    current_dir = os.getcwd()
+    model_file = "model_vgg_v0_state_dict.pth"
+    model_save_path = os.path.join(current_dir, model_file)
+    torch.save(model_vgg_v0.state_dict(), model_save_path)
 # END OF MAIN
